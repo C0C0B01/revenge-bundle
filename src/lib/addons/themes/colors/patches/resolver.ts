@@ -8,8 +8,8 @@ const tokenReference = findByProps("SemanticColor");
 const themeTypes = findByProps("ThemeTypes")?.ThemeTypes;
 
 const origRawColor = { ...tokenReference.RawColor };
-const origDarker = themeTypes.DARKER as string;
-const origLight = themeTypes.LIGHT as string;
+let origDarker: string;
+let origLight: string;
 
 const SEMANTIC_FALLBACK_MAP: Record<string, string> = {
     "BG_BACKDROP": "BACKGROUND_FLOATING",
@@ -27,16 +27,21 @@ const SEMANTIC_FALLBACK_MAP: Record<string, string> = {
 export default function patchDefinitionAndResolver() {
     const callback = ([theme]: any[]) => theme === _colorRef.key ? [_colorRef.current!.reference] : void 0;
 
-    Object.defineProperty(themeTypes, "DARKER", {
-        configurable: true,
-        enumerable: true,
-        get: () => _colorRef.current?.reference === "darker" ? _colorRef.key : origDarker,
-    });
-    Object.defineProperty(themeTypes, "LIGHT", {
-        configurable: true,
-        enumerable: true,
-        get: () => _colorRef.current?.reference === "light" ? _colorRef.key : origLight,
-    });
+    if (themeTypes) {
+        origDarker = themeTypes?.DARKER as string;
+        origLight = themeTypes?.LIGHT as string;
+        
+        Object.defineProperty(themeTypes, "DARKER", {
+            configurable: true,
+            enumerable: true,
+            get: () => _colorRef.current?.reference === "darker" ? _colorRef.key : origDarker,
+        });
+        Object.defineProperty(themeTypes, "LIGHT", {
+            configurable: true,
+            enumerable: true,
+            get: () => _colorRef.current?.reference === "light" ? _colorRef.key : origLight,
+        });
+    }
 
     Object.keys(tokenReference.RawColor).forEach(key => {
         Object.defineProperty(tokenReference.RawColor, key, {
@@ -45,7 +50,7 @@ export default function patchDefinitionAndResolver() {
             get: () => {
                 const ret = _colorRef.current?.raw[key];
                 if (ret) return ret;
-                return origRawColor[key];
+                return _colorRef.current?.raw[key] || origRawColor[key];
             }
         });
     });
@@ -81,12 +86,14 @@ export default function patchDefinitionAndResolver() {
             return orig(...args);
         }),
         () => {
-            Object.defineProperty(themeTypes, "DARKER", {
-                configurable: true, writable: true, value: origDarker
-            });
-            Object.defineProperty(themeTypes, "LIGHT", {
-                configurable: true, writable: true, value: origLight
-            });
+            if (themeTypes) {
+                Object.defineProperty(themeTypes, "DARKER", {
+                    configurable: true, writable: true, value: origDarker
+                });
+                Object.defineProperty(themeTypes, "LIGHT", {
+                    configurable: true, writable: true, value: origLight
+                });
+            }
             Object.defineProperty(tokenReference, "RawColor", {
                 configurable: true,
                 writable: true,
